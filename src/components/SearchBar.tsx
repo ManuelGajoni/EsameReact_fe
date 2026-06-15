@@ -2,7 +2,13 @@
 
 import { useState, useRef, useEffect } from "react";
 
-const FIELD_TYPES = ["Calcio a 5", "Calcio a 7", "Calcio a 11", "Padel", "Tennis"];
+const FIELD_TYPES = [
+  { label: "Calcio a 5",  icon: "⚽" },
+  { label: "Calcio a 7",  icon: "⚽" },
+  { label: "Calcio a 11", icon: "⚽" },
+  { label: "Padel",       icon: "🏓" },
+  { label: "Tennis",      icon: "🎾" },
+];
 
 const MONTH_NAMES = [
   "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
@@ -36,6 +42,102 @@ function generateTimeSlots(): string[] {
 }
 
 const TIME_SLOTS = generateTimeSlots();
+
+function FieldTypeDropdown({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isOpen]);
+
+  const selected = FIELD_TYPES.find((f) => f.label === value);
+
+  return (
+    <div
+      className="relative flex items-center border-b md:border-b-0 md:border-r border-gray-200"
+      ref={ref}
+    >
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-4 py-3 w-full h-full text-left hover:bg-gray-50 transition-colors"
+      >
+        <svg
+          className="w-4 h-4 text-gray-400 shrink-0"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M3 10h18M3 14h18M10 3v18M14 3v18"
+          />
+        </svg>
+        <span className={`text-sm whitespace-nowrap flex items-center gap-1.5 ${selected ? "text-gray-700" : "text-gray-400"}`}>
+          {selected ? (
+            <>
+              <span>{selected.icon}</span>
+              <span>{selected.label}</span>
+            </>
+          ) : (
+            "Tipo di campo"
+          )}
+        </span>
+        <svg
+          className={`w-3.5 h-3.5 text-gray-400 ml-1 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 min-w-[190px] overflow-hidden">
+          {FIELD_TYPES.map((f) => (
+            <button
+              key={f.label}
+              onClick={() => {
+                onChange(f.label);
+                setIsOpen(false);
+              }}
+              className={[
+                "w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors",
+                f.label === value
+                  ? "bg-green-50 text-green-700 font-semibold"
+                  : "text-gray-700 hover:bg-gray-50",
+              ].join(" ")}
+            >
+              <span className="text-base w-5 text-center">{f.icon}</span>
+              <span className="flex-1">{f.label}</span>
+              {f.label === value && (
+                <svg className="w-4 h-4 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function CalendarDropdown({
   selectedDate,
@@ -223,33 +325,7 @@ export default function SearchBar() {
           </div>
 
           {/* Tipo di campo */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b md:border-b-0 md:border-r border-gray-200">
-            <svg
-              className="w-4 h-4 text-gray-400 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 10h18M3 14h18M10 3v18M14 3v18"
-              />
-            </svg>
-            <select
-              value={fieldType}
-              onChange={(e) => setFieldType(e.target.value)}
-              className="text-sm text-gray-700 outline-none bg-transparent appearance-none cursor-pointer pr-2"
-            >
-              <option value="">Tipo di campo</option>
-              {FIELD_TYPES.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
-          </div>
+          <FieldTypeDropdown value={fieldType} onChange={setFieldType} />
 
           {/* Data */}
           <div className="relative flex items-center border-b md:border-b-0 md:border-r border-gray-200" ref={calendarRef}>
