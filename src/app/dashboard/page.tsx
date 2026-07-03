@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import type { UserVenue } from "@/context/AuthContext";
+import MiePrenotazioniTab from "./MiePrenotazioniTab";
 
 const GRADIENTS = [
   "from-green-400 to-green-600",
@@ -108,18 +109,86 @@ function Spinner() {
   );
 }
 
+function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className={["px-5 py-2.5 text-sm font-semibold rounded-xl transition-colors",
+      active ? "bg-green-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"].join(" ")}>
+      {label}
+    </button>
+  );
+}
+
+function BookedSuccessModal({ stato, onClose }: { stato: string; onClose: () => void }) {
+  const confermata = stato === "confermata";
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center" onClick={(e) => e.stopPropagation()}>
+        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-green-50 flex items-center justify-center">
+          <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h3 className="text-sm font-bold text-gray-800 mb-1">
+          {confermata ? "Prenotazione confermata!" : "Richiesta inviata!"}
+        </h3>
+        <p className="text-sm text-gray-500 mb-5">
+          {confermata
+            ? "Il campo è stato prenotato con successo."
+            : "La tua richiesta è in attesa di conferma da parte del gestore della sede."}
+        </p>
+        <button onClick={onClose} className="w-full px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors">
+          Chiudi
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// legge il parametro ?booked= per mostrare la modale di esito dopo un redirect da una prenotazione
+function BookedParamHandler({ onDetected }: { onDetected: (stato: string) => void }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    const booked = searchParams.get("booked");
+    if (booked) {
+      onDetected(booked);
+      router.replace("/dashboard");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  return null;
+}
+
 export default function DashboardPage() {
   const { user, venues, isLoading, logout } = useAuth();
   const router = useRouter();
+  const [token, setToken] = useState<string | null>(null);
+  const [tab, setTab] = useState<"sedi" | "prenotazioni">("sedi");
+  const [bookedResult, setBookedResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) router.push("/login");
   }, [user, isLoading, router]);
 
+  useEffect(() => {
+    setToken(localStorage.getItem("access_token"));
+  }, []);
+
+  const handleBookedDetected = (stato: string) => {
+    setTab("prenotazioni");
+    setBookedResult(stato);
+  };
+
   if (isLoading || !user) return <Spinner />;
 
   return (
     <div className="min-h-screen bg-gray-50">
+
+      <Suspense fallback={null}>
+        <BookedParamHandler onDetected={handleBookedDetected} />
+      </Suspense>
 
       {/* Navbar */}
       <nav className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-40">
@@ -144,20 +213,43 @@ export default function DashboardPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-10">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Le tue sedi</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            {venues.length} {venues.length === 1 ? "sede associata" : "sedi associate"} al tuo account
-          </p>
+        <div className="mb-6 flex gap-2">
+          <TabButton label="Le tue sedi" active={tab === "sedi"} onClick={() => setTab("sedi")} />
+          <TabButton label="Le Mie Prenotazioni" active={tab === "prenotazioni"} onClick={() => setTab("prenotazioni")} />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {venues.map((venue, i) => (
-            <VenueCard key={venue.id_sede} venue={venue} index={i} />
-          ))}
-          <SearchCard />
-        </div>
+        {tab === "sedi" && (
+          <>
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-gray-800">Le tue sedi</h1>
+              <p className="text-gray-400 text-sm mt-1">
+                {venues.length} {venues.length === 1 ? "sede associata" : "sedi associate"} al tuo account
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {venues.map((venue, i) => (
+                <VenueCard key={venue.id_sede} venue={venue} index={i} />
+              ))}
+              <SearchCard />
+            </div>
+          </>
+        )}
+
+        {tab === "prenotazioni" && (
+          <>
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-gray-800">Le Mie Prenotazioni</h1>
+              <p className="text-gray-400 text-sm mt-1">Le partite che hai prenotato, passate e future</p>
+            </div>
+            {token ? <MiePrenotazioniTab token={token} /> : <Spinner />}
+          </>
+        )}
       </div>
+
+      {bookedResult && (
+        <BookedSuccessModal stato={bookedResult} onClose={() => setBookedResult(null)} />
+      )}
     </div>
   );
 }

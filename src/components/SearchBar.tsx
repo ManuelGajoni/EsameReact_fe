@@ -247,6 +247,13 @@ export default function SearchBar({ onResults }: { onResults: (results: Disponib
   const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Il testo di data/ora dipende dall'orologio locale: rendendolo subito si rischia
+  // un mismatch di idratazione se il render server e quello client cadono a cavallo
+  // di un minuto/mezz'ora diversi (o in fusi orari diversi). Si mostra un placeholder
+  // identico su server e client finché il componente non è montato.
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setReady(true); }, []);
+
   const calendarRef = useRef<HTMLDivElement>(null);
 
   // ── autocomplete ─────────────────────────────────────────────────────────────
@@ -424,7 +431,7 @@ export default function SearchBar({ onResults }: { onResults: (results: Disponib
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span className="text-sm text-gray-700 whitespace-nowrap">{formatDateIT(selectedDate)}</span>
+              <span className="text-sm text-gray-700 whitespace-nowrap">{ready ? formatDateIT(selectedDate) : "--/--/----"}</span>
             </button>
             {isCalendarOpen && (
               <CalendarDropdown selectedDate={selectedDate} onSelect={setSelectedDate} onClose={() => setIsCalendarOpen(false)} />
@@ -439,7 +446,7 @@ export default function SearchBar({ onResults }: { onResults: (results: Disponib
             </svg>
             <button onClick={() => setIsTimeModalOpen(true)}
               className="text-sm text-gray-700 whitespace-nowrap hover:text-green-600 transition-colors">
-              {selectedTime}
+              {ready ? selectedTime : "--:--"}
             </button>
           </div>
 

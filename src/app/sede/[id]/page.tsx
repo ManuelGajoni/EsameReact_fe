@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import PrenotazioniTab from "./PrenotazioniTab";
+import ConfermaPrenotazioniTab from "./ConfermaPrenotazioniTab";
+import CalendarioTab from "./CalendarioTab";
 
 const API_BASE_URL = "http://localhost:8080";
 
@@ -15,17 +18,7 @@ interface SedeInfo {
   numeroTelefono: string | null; descrizione: string | null;
   ruolo: string | null; orari: OrarioDto[];
 }
-interface Prenotazione {
-  id: string; data: string; oraInizio: string; oraFine: string;
-  stato: string; nomeCampo: string; tipoCampo: string; nomeUtente: string; emailUtente: string;
-}
 interface OrarioForm { giorno: number; aperto: boolean; oraApertura: string; oraChiusura: string; }
-
-const STATO_STYLE: Record<string, string> = {
-  confermata: "bg-green-100 text-green-700",
-  in_attesa:  "bg-amber-100 text-amber-700",
-  annullata:  "bg-red-100 text-red-500",
-};
 
 function Spinner() {
   return (
@@ -243,12 +236,10 @@ export default function SedePage() {
   const router = useRouter();
 
   const [sede, setSede] = useState<SedeInfo | null>(null);
-  const [prenotazioni, setPrenotazioni] = useState<Prenotazione[]>([]);
   const [loadingSede, setLoadingSede] = useState(true);
-  const [loadingPren, setLoadingPren] = useState(true);
   const [error, setError] = useState("");
   const [token, setToken] = useState<string | null>(null);
-  const [tab, setTab] = useState<"prenotazioni" | "info">("info");
+  const [tab, setTab] = useState<"prenotazioni" | "conferma" | "calendario" | "info">("calendario");
 
   useEffect(() => {
     const t = localStorage.getItem("access_token");
@@ -259,27 +250,17 @@ export default function SedePage() {
       .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((data: SedeInfo) => {
         setSede(data);
-        // i founder vedono le prenotazioni di default
-        if (data.ruolo === "founder") setTab("prenotazioni");
+        // i founder vedono le prenotazioni di default, i clienti il calendario
+        setTab(data.ruolo === "founder" ? "prenotazioni" : "calendario");
       })
       .catch(() => setError("Impossibile caricare i dati della sede."))
       .finally(() => setLoadingSede(false));
-
-    fetch(`${API_BASE_URL}/api/sedi/${id}/prenotazioni`, { headers: { Authorization: `Bearer ${t}` } })
-      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(setPrenotazioni)
-      .catch(() => {})
-      .finally(() => setLoadingPren(false));
   }, [id, router]);
 
   const isFounder = sede?.ruolo === "founder";
 
   const handleOrariSaved = (nuoviOrari: OrarioDto[]) =>
     setSede((prev) => prev ? { ...prev, orari: nuoviOrari } : prev);
-
-  const formatData = (iso: string) =>
-    new Date(iso).toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "long" });
-  const formatOra = (t: string) => t.slice(0, 5);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -319,60 +300,49 @@ export default function SedePage() {
           </div>
         )}
 
-        {/* Tab switcher — "Prenotazioni" solo per founder */}
-        <div className="flex gap-2 mb-6">
+        {/* Tab switcher — "Prenotazioni"/"Conferma Prenotazioni" solo per founder */}
+        <div className="flex gap-2 mb-6 flex-wrap">
           {isFounder && (
-            <TabButton label="Prenotazioni" active={tab === "prenotazioni"} onClick={() => setTab("prenotazioni")} />
+            <>
+              <TabButton label="Prenotazioni" active={tab === "prenotazioni"} onClick={() => setTab("prenotazioni")} />
+              <TabButton label="Conferma Prenotazioni" active={tab === "conferma"} onClick={() => setTab("conferma")} />
+            </>
           )}
+          <TabButton label="Calendario" active={tab === "calendario"} onClick={() => setTab("calendario")} />
           <TabButton label="Informazioni" active={tab === "info"} onClick={() => setTab("info")} />
         </div>
 
-        {/* ── TAB PRENOTAZIONI (solo founder) ── */}
-        {tab === "prenotazioni" && isFounder && (
-          loadingPren ? <Spinner /> :
-          prenotazioni.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-sm p-10 text-center text-gray-400">
-              <svg className="w-10 h-10 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <p className="text-sm font-medium">Nessuna prenotazione futura</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {prenotazioni.map((p) => (
-                <div key={p.id} className="bg-white rounded-2xl shadow-sm p-4 flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="sm:w-40 shrink-0">
-                    <p className="text-sm font-semibold text-gray-800 capitalize">{formatData(p.data)}</p>
-                    <p className="text-xs text-gray-400">{formatOra(p.oraInizio)} – {formatOra(p.oraFine)}</p>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">{p.nomeCampo}</p>
-                    <p className="text-xs text-gray-400 capitalize">{p.tipoCampo}</p>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-700">{p.nomeUtente}</p>
-                    <p className="text-xs text-gray-400">{p.emailUtente}</p>
-                  </div>
-                  <span className={["text-xs font-semibold px-2.5 py-1 rounded-full shrink-0",
-                    STATO_STYLE[p.stato] ?? "bg-gray-100 text-gray-500"].join(" ")}>
-                    {p.stato.replace("_", " ")}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )
-        )}
+        {/*
+          Tutte le tab a cui l'utente ha accesso vengono montate insieme al primo
+          caricamento e restano montate (nascoste con "hidden") quando si cambia tab:
+          così i dati vengono richiesti una sola volta e cambiare tab è istantaneo,
+          senza spinner ripetuti.
+        */}
+        {!loadingSede && sede && token && (
+          <>
+            {isFounder && (
+              <div className={tab === "prenotazioni" ? "" : "hidden"}>
+                <PrenotazioniTab idSede={sede.idSede} token={token} />
+              </div>
+            )}
 
-        {/* ── TAB INFORMAZIONI ── */}
-        {tab === "info" && (
-          loadingSede || !sede || !token ? <Spinner /> : (
-            <div className="space-y-4">
+            {isFounder && (
+              <div className={tab === "conferma" ? "" : "hidden"}>
+                <ConfermaPrenotazioniTab idSede={sede.idSede} token={token} />
+              </div>
+            )}
+
+            <div className={tab === "calendario" ? "" : "hidden"}>
+              <CalendarioTab idSede={sede.idSede} token={token} isFounder={!!isFounder} />
+            </div>
+
+            <div className={tab === "info" ? "space-y-4" : "hidden"}>
               <SedeInfoCard sede={sede} token={token} onSaved={setSede} />
               <OrariCard sede={sede} token={token} onSaved={handleOrariSaved} />
             </div>
-          )
+          </>
         )}
+        {(loadingSede || !sede || !token) && !error && <Spinner />}
       </div>
     </div>
   );
