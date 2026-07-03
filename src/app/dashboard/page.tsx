@@ -24,35 +24,66 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-function VenueCard({ venue, index }: { venue: UserVenue; index: number }) {
+function SearchCard() {
   return (
-    <div className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+    <Link href="/" className="block group">
+      <div className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden h-full">
 
-      {/* Colored header */}
-      <div
-        className={`h-32 bg-gradient-to-br ${GRADIENTS[index % GRADIENTS.length]} flex items-center justify-center`}
-      >
-        <span className="text-white text-6xl font-extrabold opacity-25 select-none tracking-tighter">
-          {getInitials(venue.nome_sede)}
-        </span>
-      </div>
-
-      {/* Body */}
-      <div className="p-4">
-        <h2 className="font-bold text-gray-800 text-base leading-tight mb-1 line-clamp-2">
-          {venue.nome_sede}
-        </h2>
-        <div className="flex items-center gap-1 text-gray-400 text-sm mb-4">
-          <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <span>{venue.citta}</span>
+        {/* Header tratteggiato */}
+        <div className="h-32 border-2 border-dashed border-gray-200 group-hover:border-green-400 rounded-t-2xl flex items-center justify-center transition-colors">
+          <div className="w-14 h-14 rounded-full bg-green-50 group-hover:bg-green-600 flex items-center justify-center transition-colors">
+            <svg
+              className="w-7 h-7 text-green-500 group-hover:text-white transition-colors"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+          </div>
         </div>
 
-        {/* Footer row */}
-        <div className="flex items-center justify-between">
+        {/* Body */}
+        <div className="p-4 flex flex-col justify-center">
+          <h2 className="font-bold text-gray-700 group-hover:text-green-600 text-base leading-tight mb-1 transition-colors">
+            Cerca
+          </h2>
+          <p className="text-gray-400 text-sm">Scopri nuove sedi e campi</p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function VenueCard({ venue, index }: { venue: UserVenue; index: number }) {
+  return (
+    <Link href={`/sede/${venue.id_sede}`} className="block group">
+      <div className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+
+        {/* Colored header */}
+        <div
+          className={`h-32 bg-gradient-to-br ${GRADIENTS[index % GRADIENTS.length]} flex items-center justify-center`}
+        >
+          <span className="text-white text-6xl font-extrabold opacity-25 select-none tracking-tighter">
+            {getInitials(venue.nome_sede)}
+          </span>
+        </div>
+
+        {/* Body */}
+        <div className="p-4">
+          <h2 className="font-bold text-gray-800 group-hover:text-green-600 text-base leading-tight mb-1 line-clamp-2 transition-colors">
+            {venue.nome_sede}
+          </h2>
+          <div className="flex items-center gap-1 text-gray-400 text-sm mb-4">
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>{venue.citta}</span>
+          </div>
+
           <span
             className={[
               "text-xs font-semibold px-2.5 py-1 rounded-full",
@@ -63,24 +94,9 @@ function VenueCard({ venue, index }: { venue: UserVenue; index: number }) {
           >
             {venue.ruolo === "founder" ? "⭐ Proprietario" : "Cliente"}
           </span>
-
-          {/* Search icon → opens home search page */}
-          <Link href="/" aria-label="Cerca campi in questa sede">
-            <span className="w-9 h-9 rounded-full bg-green-50 hover:bg-green-600 flex items-center justify-center transition-colors group/btn">
-              <svg
-                className="w-4 h-4 text-green-600 group-hover/btn:text-white transition-colors"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-              </svg>
-            </span>
-          </Link>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -139,6 +155,7 @@ export default function DashboardPage() {
           {venues.map((venue, i) => (
             <VenueCard key={venue.id_sede} venue={venue} index={i} />
           ))}
+          <SearchCard />
         </div>
       </div>
     </div>
