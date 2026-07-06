@@ -4,14 +4,21 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-export default function LoginPage() {
+type Mode = "login" | "register";
+
+export default function LoginPage()
+{
+  const [mode, setMode] = useState<Mode>("login");
+
+  const [nome, setNome] = useState("");
+  const [cognome, setCognome] = useState("");
   const [email, setEmail]               = useState("");
   const [password, setPassword]         = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError]               = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { user, isLoading, login } = useAuth();
+  const { user, isLoading, login, register } = useAuth();
   const router = useRouter();
 
   // Redirect to dashboard if already logged in
@@ -19,12 +26,21 @@ export default function LoginPage() {
     if (!isLoading && user) router.push("/dashboard");
   }, [user, isLoading, router]);
 
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setError("");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsSubmitting(true);
     try {
-      await login(email, password);
+      if (mode === "login") {
+        await login(email, password);
+      } else {
+        await register(nome, cognome, email, password);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Errore di accesso");
     } finally {
@@ -44,6 +60,8 @@ export default function LoginPage() {
 
   if (isLoading) return null;
 
+  const inp = "w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none transition-colors";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -56,8 +74,17 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="bg-white rounded-3xl shadow-xl p-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-1">Bentornato!</h2>
-          <p className="text-gray-400 text-sm mb-6">Accedi al tuo account per continuare</p>
+          {mode === "login" ? (
+            <>
+              <h2 className="text-2xl font-bold text-gray-800 mb-1">Bentornato!</h2>
+              <p className="text-gray-400 text-sm mb-6">Accedi al tuo account per continuare</p>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-gray-800 mb-1">Crea il tuo account</h2>
+              <p className="text-gray-400 text-sm mb-6">Registrati per iniziare a prenotare</p>
+            </>
+          )}
 
           {/* Error banner */}
           {error && (
@@ -73,6 +100,37 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
 
+            {mode === "register" && (
+              <div className="flex gap-3">
+                <div className="relative flex-1">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    placeholder="Nome"
+                    required
+                    className={inp}
+                  />
+                </div>
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={cognome}
+                    onChange={(e) => setCognome(e.target.value)}
+                    placeholder="Cognome"
+                    required
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Email */}
             <div className="relative">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -87,7 +145,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
                 required
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none transition-colors"
+                className={inp}
               />
             </div>
 
@@ -105,6 +163,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
                 required
+                minLength={mode === "register" ? 8 : undefined}
                 className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none transition-colors"
               />
               <button
@@ -126,13 +185,18 @@ export default function LoginPage() {
                 )}
               </button>
             </div>
+            {mode === "register" && (
+              <p className="text-xs text-gray-400 -mt-2">La password deve avere almeno 8 caratteri.</p>
+            )}
 
             <button
               type="submit"
               disabled={isSubmitting}
               className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
             >
-              {isSubmitting ? "Accesso in corso…" : "Accedi"}
+              {mode === "login"
+                ? (isSubmitting ? "Accesso in corso…" : "Accedi")
+                : (isSubmitting ? "Registrazione in corso…" : "Crea account")}
             </button>
           </form>
 
@@ -151,12 +215,32 @@ export default function LoginPage() {
             </button>
           </div> */}
 
+          {/* Toggle login/registrazione */}
+          <p className="text-center text-sm text-gray-400 mt-6">
+            {mode === "login" ? (
+              <>Non hai un account?{" "}
+                <button type="button" onClick={() => switchMode("register")} className="text-green-600 font-semibold hover:text-green-700 transition-colors">
+                  Registrati
+                </button>
+              </>
+            ) : (
+              <>Hai già un account?{" "}
+                <button type="button" onClick={() => switchMode("login")} className="text-green-600 font-semibold hover:text-green-700 transition-colors">
+                  Accedi
+                </button>
+              </>
+            )}
+          </p>
+
           {/* Dev credentials hint */}
-          <div className="mt-5 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-            <p className="text-xs font-semibold text-amber-700 mb-0.5">Credenziali demo</p>
-            <p className="text-xs text-amber-600">admin@example.com · 1</p>
-            <p className="text-xs text-amber-600">mario.rossi@example.com · 1</p>
-          </div>
+          {mode === "login" && (
+            <div className="mt-5 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+              <p className="text-xs font-semibold text-amber-700 mb-0.5">Credenziali demo</p>
+              <p className="text-xs text-amber-600">admin@example.com · 1</p>
+              <p className="text-xs text-amber-600">mario.rossi@example.com · 1</p>
+              <p className="text-xs text-amber-600">giulia.bianchi@example.com · 1</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

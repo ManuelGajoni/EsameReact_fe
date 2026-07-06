@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import type { UserVenue } from "@/context/AuthContext";
 import MiePrenotazioniTab from "./MiePrenotazioniTab";
+import CreaSedeModal from "@/components/CreaSedeModal";
+import { immagineSede } from "@/lib/immagini";
 
 const GRADIENTS = [
   "from-green-400 to-green-600",
@@ -57,18 +59,56 @@ function SearchCard() {
   );
 }
 
+function CreaSedeCard({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="block group text-left h-full">
+      <div className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden h-full">
+
+        {/* Header tratteggiato */}
+        <div className="h-32 border-2 border-dashed border-gray-200 group-hover:border-green-400 rounded-t-2xl flex items-center justify-center transition-colors">
+          <div className="w-14 h-14 rounded-full bg-green-50 group-hover:bg-green-600 flex items-center justify-center transition-colors">
+            <svg
+              className="w-7 h-7 text-green-500 group-hover:text-white transition-colors"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-4 flex flex-col justify-center">
+          <h2 className="font-bold text-gray-700 group-hover:text-green-600 text-base leading-tight mb-1 transition-colors">
+            Crea sede
+          </h2>
+          <p className="text-gray-400 text-sm">Registra un nuovo centro sportivo</p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 function VenueCard({ venue, index }: { venue: UserVenue; index: number }) {
   return (
     <Link href={`/sede/${venue.id_sede}`} className="block group">
       <div className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
 
-        {/* Colored header */}
+        {/* Colored header (fallback) + immagine della sede */}
         <div
-          className={`h-32 bg-gradient-to-br ${GRADIENTS[index % GRADIENTS.length]} flex items-center justify-center`}
+          className={`relative h-32 bg-gradient-to-br ${GRADIENTS[index % GRADIENTS.length]} flex items-center justify-center overflow-hidden`}
         >
           <span className="text-white text-6xl font-extrabold opacity-25 select-none tracking-tighter">
             {getInitials(venue.nome_sede)}
           </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={immagineSede(venue.ruolo)}
+            alt=""
+            onError={(e) => { e.currentTarget.style.opacity = "0"; }}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
         </div>
 
         {/* Body */}
@@ -162,11 +202,12 @@ function BookedParamHandler({ onDetected }: { onDetected: (stato: string) => voi
 }
 
 export default function DashboardPage() {
-  const { user, venues, isLoading, logout } = useAuth();
+  const { user, venues, isLoading, logout, refreshVenues } = useAuth();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [tab, setTab] = useState<"sedi" | "prenotazioni">("sedi");
   const [bookedResult, setBookedResult] = useState<string | null>(null);
+  const [creatingSede, setCreatingSede] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) router.push("/login");
@@ -232,6 +273,7 @@ export default function DashboardPage() {
                 <VenueCard key={venue.id_sede} venue={venue} index={i} />
               ))}
               <SearchCard />
+              <CreaSedeCard onClick={() => setCreatingSede(true)} />
             </div>
           </>
         )}
@@ -249,6 +291,18 @@ export default function DashboardPage() {
 
       {bookedResult && (
         <BookedSuccessModal stato={bookedResult} onClose={() => setBookedResult(null)} />
+      )}
+
+      {creatingSede && token && (
+        <CreaSedeModal
+          token={token}
+          onClose={() => setCreatingSede(false)}
+          onCreated={async (sede) => {
+            setCreatingSede(false);
+            await refreshVenues();
+            router.push(`/sede/${sede.idSede}`);
+          }}
+        />
       )}
     </div>
   );

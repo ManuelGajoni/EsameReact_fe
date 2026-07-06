@@ -6,6 +6,7 @@ export interface SedeInfo {
   descrizione: string | null;
   ruolo: string | null;
   orari: { giorno: number; oraApertura: string; oraChiusura: string }[];
+  campi: { idCampo: string; nome: string; tipo: string; prezzoOrario: number }[];
 }
 
 export interface Prenotazione {

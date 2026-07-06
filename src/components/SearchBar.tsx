@@ -12,7 +12,9 @@ export interface DisponibilitaResult {
   idSede: string;
   nomeSede: string;
   citta: string;
+  prezzoOrario: number;
   slotDisponibili: string[];
+  data: string;
 }
 
 // ── tipi interni ───────────────────────────────────────────────────────────────
@@ -47,14 +49,10 @@ const MONTH_NAMES = [
 ];
 const DAY_NAMES = ["Lu", "Ma", "Me", "Gi", "Ve", "Sa", "Do"];
 
-function getNextHalfHour(): string {
+function getNextHour(): string {
   const now = new Date();
-  if (now.getMinutes() < 30) {
-    now.setMinutes(30, 0, 0);
-  } else {
-    now.setHours(now.getHours() + 1, 0, 0, 0);
-  }
-  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  now.setHours(now.getHours() + 1, 0, 0, 0);
+  return `${String(now.getHours()).padStart(2, "0")}:00`;
 }
 
 function formatDateIT(date: Date): string {
@@ -67,7 +65,6 @@ function generateTimeSlots(): string[] {
   const slots: string[] = [];
   for (let h = 0; h < 24; h++) {
     slots.push(`${String(h).padStart(2, "0")}:00`);
-    slots.push(`${String(h).padStart(2, "0")}:30`);
   }
   return slots;
 }
@@ -242,7 +239,7 @@ export default function SearchBar({ onResults }: { onResults: (results: Disponib
   const [tipiDisponibili, setTipiDisponibili] = useState<string[]>(TUTTI_I_TIPI);
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
-  const [selectedTime, setSelectedTime] = useState<string>(() => getNextHalfHour());
+  const [selectedTime, setSelectedTime] = useState<string>(() => getNextHour());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -341,7 +338,8 @@ export default function SearchBar({ onResults }: { onResults: (results: Disponib
     const y = selectedDate.getFullYear();
     const mo = String(selectedDate.getMonth() + 1).padStart(2, "0");
     const d = String(selectedDate.getDate()).padStart(2, "0");
-    params.set("data", `${y}-${mo}-${d}`);
+    const dataIso = `${y}-${mo}-${d}`;
+    params.set("data", dataIso);
     params.set("oraInizio", selectedTime);
 
     const token = localStorage.getItem("access_token");
@@ -351,8 +349,8 @@ export default function SearchBar({ onResults }: { onResults: (results: Disponib
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       if (res.ok) {
-        const data: DisponibilitaResult[] = await res.json();
-        onResults(data);
+        const data: Omit<DisponibilitaResult, "data">[] = await res.json();
+        onResults(data.map((r) => ({ ...r, data: dataIso })));
       }
     } catch { /* ignora */ } finally {
       setIsSearching(false);

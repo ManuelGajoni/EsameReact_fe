@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiJson } from "./api";
+import { apiJson, ApiError } from "./api";
 import { useAuth } from "@/context/AuthContext";
 import { notifyPrenotazioniChanged } from "@/lib/prenotazioniEvents";
 
@@ -51,7 +51,11 @@ export default function BookingModal({
       notifyPrenotazioniChanged();
       router.push(`/dashboard?booked=${result.stato}`);
     } catch (e) {
-      setErrorModal(e instanceof Error ? e.message : "Prenotazione fallita.");
+      if (isFounder && e instanceof ApiError && e.status === 404) {
+        setErrorModal(`Non abbiamo trovato nessun utente registrato con la mail "${email.trim()}". Chiedi al cliente di creare un account su Fields prima di procedere con la prenotazione.`);
+      } else {
+        setErrorModal(e instanceof Error ? e.message : "Prenotazione fallita.");
+      }
     } finally {
       setSaving(false);
     }

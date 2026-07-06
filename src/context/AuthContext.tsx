@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, Fragment } from "react";
 import { useRouter } from "next/navigation";
 
 export interface User {
@@ -21,8 +21,10 @@ interface AuthContextType {
   venues: UserVenue[];
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (nome: string, cognome: string, email: string, password: string) => Promise<void>;
   // loginWithProvider: (provider: "google" | "github") => Promise<void>;
   logout: () => void;
+  refreshVenues: () => Promise<void>;
   // completeOAuthLogin: (accessToken: string, refreshToken: string) => void;
 }
 
@@ -36,6 +38,15 @@ function isAuthEndpoint(url: string): boolean {
   return url.includes("/api/auth/");
 }
 
+async function extractErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const data = await res.json();
+    return data.message ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [venues, setVenues] = useState<UserVenue[]>([]);
@@ -43,6 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [renewing, setRenewing] = useState(false);
   const [renewError, setRenewError] = useState("");
+  // Incrementato dopo un rinnovo riuscito della sessione: forza lo smontaggio/rimontaggio
+  // della pagina corrente così i suoi dati (rimasti in errore per via del 401) vengono
+  // ricaricati con il nuovo token, invece di restare bloccati finché non si ricarica a mano.
+  const [sessionEpoch, setSessionEpoch] = useState(0);
   const router = useRouter();
 
   const handleTokens = useCallback(async (access: string, refresh: string) => {
@@ -84,15 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Ad ogni avvio dell'app (mount) si richiede sempre un nuovo login: eventuali
+  // token rimasti da una sessione precedente vengono scartati invece di essere
+  // usati per un accesso automatico alla dashboard.
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    const refresh = localStorage.getItem("refresh_token");
-    if (token && refresh) {
-      handleTokens(token, refresh).finally(() => setIsLoading(false));
-    } else {
-      setIsLoading(false);
-    }
-  }, [handleTokens]);
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    setIsLoading(false);
+  }, []);
 
   // Intercetta ogni fetch dell'app: se il backend risponde 401 (token mancante/scaduto/non
   // valido, vedi SecurityConfig) e c'è un refresh token salvato, propone di rinnovare la
@@ -119,6 +133,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!response.ok) {
       throw new Error("Email o password non validi");
+    }
+
+    const data = await response.json();
+    await handleTokens(data.accessToken, data.refreshToken);
+    router.push("/dashboard");
+  };
+
+  const register = async (nome: string, cognome: string, email: string, password: string) => {
+    const name = `${nome.trim()} ${cognome.trim()}`.trim();
+    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, name }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Registrazione non riuscita"));
     }
 
     const data = await response.json();
@@ -153,6 +184,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/login");
   };
 
+  const refreshVenues = async () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/sedi/mie`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setVenues(await res.json());
+    } catch (e) {
+      console.error("Errore nel ricaricamento delle sedi", e);
+    }
+  };
+
   const renewSession = async () => {
     const refreshToken = localStorage.getItem("refresh_token");
     if (!refreshToken) { await logout(); return; }
@@ -168,6 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
       await handleTokens(data.accessToken, data.refreshToken);
       setSessionExpired(false);
+      setSessionEpoch((e) => e + 1);
     } catch {
       setRenewError("Rinnovo non riuscito. Effettua di nuovo l'accesso.");
     } finally {
@@ -177,9 +222,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, venues, isLoading, login, logout }}
+      value={{ user, venues, isLoading, login, register, logout, refreshVenues }}
     >
-      {children}
+      <Fragment key={sessionEpoch}>{children}</Fragment>
 
       {sessionExpired && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
