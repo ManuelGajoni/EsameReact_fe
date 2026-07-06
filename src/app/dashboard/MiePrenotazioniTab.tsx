@@ -6,6 +6,8 @@ import { apiGet } from "./api";
 import { PrenotazioneUtente, STATO_STYLE } from "./types";
 import CancelMiaPrenotazioneModal from "./CancelMiaPrenotazioneModal";
 import { usePrenotazioniChanged } from "@/lib/prenotazioniEvents";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 function Spinner() {
   return (
@@ -41,10 +43,9 @@ function Riga({ p, onCancelClick }: { p: PrenotazioneUtente; onCancelClick?: (p:
         </Link>
         <p className="text-xs text-gray-400">{p.cittaSede}</p>
       </div>
-      <span className={["text-xs font-semibold px-2.5 py-1 rounded-full shrink-0",
-        STATO_STYLE[p.stato] ?? "bg-gray-100 text-gray-500"].join(" ")}>
+      <Badge variant="outline" className={cn("shrink-0", STATO_STYLE[p.stato] ?? "bg-gray-100 text-gray-500")}>
         {p.stato.replace("_", " ")}
-      </span>
+      </Badge>
       {onCancelClick && p.stato !== "annullata" && (
         <button onClick={() => onCancelClick(p)} aria-label="Annulla prenotazione"
           className="shrink-0 w-8 h-8 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">

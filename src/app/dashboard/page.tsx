@@ -8,6 +8,7 @@ import type { UserVenue } from "@/context/AuthContext";
 import MiePrenotazioniTab from "./MiePrenotazioniTab";
 import CreaSedeModal from "@/components/CreaSedeModal";
 import { immagineSede } from "@/lib/immagini";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const GRADIENTS = [
   "from-green-400 to-green-600",
@@ -149,14 +150,6 @@ function Spinner() {
   );
 }
 
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className={["px-5 py-2.5 text-sm font-semibold rounded-xl transition-colors",
-      active ? "bg-green-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"].join(" ")}>
-      {label}
-    </button>
-  );
-}
 
 function BookedSuccessModal({ stato, onClose }: { stato: string; onClose: () => void }) {
   const confermata = stato === "confermata";
@@ -258,20 +251,23 @@ export default function DashboardPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-10">
-        <div className="mb-6 flex gap-2">
-          <TabButton label="Le tue sedi" active={tab === "sedi"} onClick={() => setTab("sedi")} />
-          <TabButton label="Le Mie Prenotazioni" active={tab === "prenotazioni"} onClick={() => setTab("prenotazioni")} />
-        </div>
+        <Tabs value={tab} onValueChange={(v) => { if (v) setTab(v as "sedi" | "prenotazioni"); }}>
+          <TabsList className="mb-6 h-auto bg-transparent gap-2 p-0">
+            <TabsTrigger value="sedi" className="px-5 py-2.5 text-sm rounded-xl data-active:bg-green-600 data-active:text-white data-active:shadow-sm">
+              Le tue sedi
+            </TabsTrigger>
+            <TabsTrigger value="prenotazioni" className="px-5 py-2.5 text-sm rounded-xl data-active:bg-green-600 data-active:text-white data-active:shadow-sm">
+              Le Mie Prenotazioni
+            </TabsTrigger>
+          </TabsList>
 
-        {tab === "sedi" && (
-          <>
+          <TabsContent value="sedi">
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-gray-800">Le tue sedi</h1>
               <p className="text-gray-400 text-sm mt-1">
                 {venues.length} {venues.length === 1 ? "sede associata" : "sedi associate"} al tuo account
               </p>
             </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {venues.map((venue, i) => (
                 <VenueCard key={venue.id_sede} venue={venue} index={i} />
@@ -279,18 +275,16 @@ export default function DashboardPage() {
               <SearchCard />
               <CreaSedeCard onClick={() => setCreatingSede(true)} />
             </div>
-          </>
-        )}
+          </TabsContent>
 
-        {tab === "prenotazioni" && (
-          <>
+          <TabsContent value="prenotazioni">
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-gray-800">Le Mie Prenotazioni</h1>
               <p className="text-gray-400 text-sm mt-1">Le partite che hai prenotato, passate e future</p>
             </div>
             {token ? <MiePrenotazioniTab token={token} /> : <Spinner />}
-          </>
-        )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {bookedResult && (
