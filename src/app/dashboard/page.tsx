@@ -210,7 +210,11 @@ export default function DashboardPage() {
   const [creatingSede, setCreatingSede] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && !user) router.push("/login");
+    console.log("[DEBUG dashboard redirect-check]", { isLoading, user });
+    if (!isLoading && !user) {
+      console.log("[DEBUG dashboard] redirecting to /login because user is falsy");
+      router.push("/login");
+    }
   }, [user, isLoading, router]);
 
   useEffect(() => {

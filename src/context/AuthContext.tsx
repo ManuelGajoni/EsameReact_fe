@@ -22,10 +22,10 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (nome: string, cognome: string, email: string, password: string) => Promise<void>;
-  // loginWithProvider: (provider: "google" | "github") => Promise<void>;
+  loginWithProvider: (provider: "google" | "github") => void;
   logout: () => void;
   refreshVenues: () => Promise<void>;
-  // completeOAuthLogin: (accessToken: string, refreshToken: string) => void;
+  completeOAuthLogin: (accessToken: string, refreshToken: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   const handleTokens = useCallback(async (access: string, refresh: string) => {
+    console.log("[DEBUG handleTokens] start", { access: access.slice(0, 20) + "…", refresh });
     localStorage.setItem("access_token", access);
     localStorage.setItem("refresh_token", refresh);
 
@@ -73,9 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           headers: { Authorization: `Bearer ${access}` },
         }),
       ]);
+      console.log("[DEBUG handleTokens] meRes", meRes.status, "venuesRes", venuesRes.status);
 
       if (meRes.ok) {
         const me = await meRes.json();
+        console.log("[DEBUG handleTokens] setting user from /me", me);
         setUser({
           id: me.id,
           name: me.name || me.email.split("@")[0],
@@ -84,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         // fallback: legge email dal JWT
         const payload = JSON.parse(atob(access.split(".")[1]));
+        console.log("[DEBUG handleTokens] /me not ok, falling back to JWT payload", payload);
         setUser({ id: "unknown", name: payload.sub.split("@")[0], email: payload.sub });
       }
 
@@ -91,20 +95,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setVenues(await venuesRes.json());
       }
     } catch (e) {
-      console.error("Errore nel caricamento dati utente", e);
+      console.error("[DEBUG handleTokens] EXCEPTION", e);
       try {
         const payload = JSON.parse(atob(access.split(".")[1]));
         setUser({ id: "unknown", name: payload.sub.split("@")[0], email: payload.sub });
-      } catch {}
+      } catch (e2) { console.error("[DEBUG handleTokens] fallback JWT decode ALSO failed", e2); }
     }
+    console.log("[DEBUG handleTokens] end");
   }, []);
 
   // Ad ogni avvio dell'app (mount) si richiede sempre un nuovo login: eventuali
   // token rimasti da una sessione precedente vengono scartati invece di essere
   // usati per un accesso automatico alla dashboard.
+  // Eccezione: /auth/callback è un mount "fresco" (redirect dal backend dopo il login
+  // OAuth2) che sta per scrivere i token appena emessi — cancellarli qui li perderebbe
+  // subito dopo un login riuscito.
   useEffect(() => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
+    console.log("[DEBUG AuthProvider mount-effect] pathname:", window.location.pathname);
+    if (!window.location.pathname.startsWith("/auth/callback")) {
+      console.log("[DEBUG AuthProvider mount-effect] clearing tokens");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+    } else {
+      console.log("[DEBUG AuthProvider mount-effect] SKIPPING clear (on /auth/callback)");
+    }
     setIsLoading(false);
   }, []);
 
@@ -157,14 +171,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/dashboard");
   };
 
-  // OAuth2 – commentato fino a configurazione Google/GitHub
-  // const loginWithProvider = async (provider: "google" | "github") => {
-  //   window.location.href = `${API_BASE_URL}/oauth2/authorization/${provider}`;
-  // };
+  const loginWithProvider = (provider: "google" | "github") => {
+    window.location.href = `${API_BASE_URL}/oauth2/authorization/${provider}`;
+  };
 
-  // const completeOAuthLogin = (accessToken: string, refreshToken: string) => {
-  //   handleTokens(accessToken, refreshToken);
-  // };
+  const completeOAuthLogin = async (accessToken: string, refreshToken: string) => {
+    console.log("[DEBUG completeOAuthLogin] called");
+    await handleTokens(accessToken, refreshToken);
+    console.log("[DEBUG completeOAuthLogin] handleTokens resolved, pushing /dashboard");
+    router.push("/dashboard");
+  };
 
   const logout = async () => {
     const refreshToken = localStorage.getItem("refresh_token");
@@ -222,7 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, venues, isLoading, login, register, logout, refreshVenues }}
+      value={{ user, venues, isLoading, login, register, loginWithProvider, logout, refreshVenues, completeOAuthLogin }}
     >
       <Fragment key={sessionEpoch}>{children}</Fragment>
 

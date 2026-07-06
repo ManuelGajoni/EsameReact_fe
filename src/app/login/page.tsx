@@ -18,7 +18,7 @@ export default function LoginPage()
   const [error, setError]               = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { user, isLoading, login, register } = useAuth();
+  const { user, isLoading, login, register, loginWithProvider } = useAuth();
   const router = useRouter();
 
   // Redirect to dashboard if already logged in
@@ -48,15 +48,10 @@ export default function LoginPage()
     }
   };
 
-  // OAuth2 – commentato fino a configurazione Google/GitHub
-  // const handleProvider = async (provider: "google" | "github") => {
-  //   setError("");
-  //   try {
-  //     await loginWithProvider(provider);
-  //   } catch {
-  //     setError(`Errore durante l'accesso con ${provider}`);
-  //   }
-  // };
+  const handleProvider = (provider: "google" | "github") => {
+    setError("");
+    loginWithProvider(provider);
+  };
 
   if (isLoading) return null;
 
@@ -200,20 +195,23 @@ export default function LoginPage()
             </button>
           </form>
 
-          {/* OAuth2 – commentato fino a configurazione Google/GitHub */}
-          {/* <div className="flex items-center gap-3 my-5">
+          {/* OAuth2 */}
+          <div className="flex items-center gap-3 my-5">
             <div className="flex-1 h-px bg-gray-200" />
             <span className="text-xs text-gray-400 whitespace-nowrap">oppure continua con</span>
             <div className="flex-1 h-px bg-gray-200" />
           </div>
           <div className="space-y-3">
             <button onClick={() => handleProvider("google")} className="w-full flex items-center justify-center gap-3 border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-xl transition-colors text-sm">
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.47c-.28 1.5-1.13 2.77-2.4 3.62v3h3.88c2.27-2.09 3.57-5.17 3.57-8.81z" />
+                <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.95-2.92l-3.88-3c-1.08.72-2.46 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.09C3.25 21.3 7.31 24 12 24z" />
+                <path fill="#FBBC05" d="M5.27 14.27a7.2 7.2 0 010-4.54V6.64H1.27a12 12 0 000 10.72l4-3.09z" />
+                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.7 1.27 6.64l4 3.09c.95-2.85 3.6-4.98 6.73-4.98z" />
+              </svg>
               Continua con Google
             </button>
-            <button onClick={() => handleProvider("github")} className="w-full flex items-center justify-center gap-3 bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 rounded-xl transition-colors text-sm">
-              Continua con GitHub
-            </button>
-          </div> */}
+          </div>
 
           {/* Toggle login/registrazione */}
           <p className="text-center text-sm text-gray-400 mt-6">
@@ -239,6 +237,8 @@ export default function LoginPage()
               <p className="text-xs text-amber-600">admin@example.com · 1</p>
               <p className="text-xs text-amber-600">mario.rossi@example.com · 1</p>
               <p className="text-xs text-amber-600">giulia.bianchi@example.com · 1</p>
+              <p className="text-xs text-amber-600">Utente_Prova1@gmail.com · 11111111</p>
+              
             </div>
           )}
         </div>
